@@ -139,9 +139,12 @@ fn handle_file_action(id: &str, paths: &[String]) -> Result<Vec<String>, String>
             #[cfg(target_os = "linux")]
             {
                 use std::io::Write;
-                let _ = std::process::Command::new("wl-copy").stdin(std::process::Stdio::piped()).spawn().and_then(|mut c| {
-                    c.stdin.take().map(|mut s| s.write_all(text.as_bytes()))
-                });
+                if let Ok(mut child) = std::process::Command::new("wl-copy").stdin(std::process::Stdio::piped()).spawn() {
+                    if let Some(mut stdin) = child.stdin.take() {
+                        let _ = stdin.write_all(text.as_bytes());
+                    }
+                    let _ = child.wait();
+                }
             }
             Ok(vec!["Path copied".to_string()])
         }
