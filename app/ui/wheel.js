@@ -3,8 +3,8 @@ const SVG = "http://www.w3.org/2000/svg";
 const C = 160;
 const R_IN = 46;
 const R_OUT = 150;
-const WHEELS = ["convert", "tools"];
-const WHEEL_NAMES = { convert: "CONVERT", tools: "TOOLS" };
+const WHEELS = ["convert", "tools", "actions"];
+const WHEEL_NAMES = { convert: "CONVERT", tools: "TOOLS", actions: "ACTIONS" };
 
 const rootEl = document.getElementById("root");
 const wheelEl = document.getElementById("wheel");
@@ -48,14 +48,22 @@ const ICONS = {
   frame: '<rect x="2.5" y="2.5" width="19" height="19" rx="4"/><rect x="7" y="7" width="10" height="10" rx="2"/>',
   redact: '<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.5"/><path d="M4 20L20 4"/>',
   tool: '<circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/>',
+  path: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  terminal: '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>',
+  reveal: '<path d="M2 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  quicklook: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  airdrop: '<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>',
 };
 
 function iconFor(id) {
   const map = {
     "convert.pdf": "doc", "convert.txt": "txt", "tool.crop": "crop", "tool.compress": "compress",
     "tool.strip": "tag", "tool.edit": "sliders", "tool.annotate": "pen", "tool.addbg": "frame", "tool.redact": "redact",
+    "action.copy_path": "path", "action.terminal": "terminal", "action.reveal": "reveal",
+    "action.copy": "copy", "action.quicklook": "quicklook", "action.airdrop": "airdrop",
   };
-  return map[id] || (id.startsWith("convert.") ? "image" : "tool");
+  return map[id] || (id.startsWith("convert.") ? "image" : id.startsWith("action.") ? "terminal" : "tool");
 }
 
 function petalPath(a0, a1, n) {
@@ -217,6 +225,14 @@ async function runSlice(i, paths = state.paths) {
   }
 }
 
+function setWheel(name) {
+  const wheels = availableWheels();
+  if (!wheels.includes(name) || state.busy || state.wheel === name) return;
+  state.wheel = name;
+  state.hot = -1;
+  render();
+}
+
 function cycleWheel(step = 1) {
   const wheels = availableWheels();
   if (wheels.length < 2 || state.busy) return;
@@ -227,8 +243,9 @@ function cycleWheel(step = 1) {
 }
 
 tauri.event.listen("wheel:show", ({ payload }) => {
-  state = { ...payload, wheel: "convert", hot: -1, busy: false };
-  state.wheel = availableWheels()[0] || "convert";
+  state = { ...payload, hot: -1, busy: false };
+  const avail = availableWheels();
+  state.wheel = payload.initial_wheel && avail.includes(payload.initial_wheel) ? payload.initial_wheel : (avail[0] || "convert");
   document.body.classList.toggle("native-glass", !!payload.native_glass);
   render();
   rootEl.classList.remove("open");
@@ -237,6 +254,10 @@ tauri.event.listen("wheel:show", ({ payload }) => {
 });
 
 tauri.event.listen("wheel:cycle", () => cycleWheel());
+
+tauri.event.listen("wheel:select_wheel", ({ payload }) => {
+  if (payload) setWheel(payload);
+});
 
 tauri.event.listen("wheel:mouseup", () => {
   setTimeout(() => { if (!state.busy) hide(); }, 200);
@@ -267,7 +288,26 @@ tauri.webview.getCurrentWebview().onDragDropEvent(({ payload }) => {
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") return hide();
-  if (e.key === "Tab" || e.key === "Shift") { e.preventDefault(); return cycleWheel(e.shiftKey && e.key === "Tab" ? -1 : 1); }
+  if (e.key === "Tab") {
+    e.preventDefault();
+    return cycleWheel(e.shiftKey ? -1 : 1);
+  }
+  if (e.key === "Shift") {
+    e.preventDefault();
+    if (state.wheel === "convert") cycleWheel(1);
+    else setWheel("convert");
+    return;
+  }
+  if (e.key === "Meta" || e.key === "Alt") {
+    e.preventDefault();
+    setWheel("tools");
+    return;
+  }
+  if (e.key === "Control") {
+    e.preventDefault();
+    setWheel("actions");
+    return;
+  }
   const n = Number(e.key);
   if (n >= 1 && n <= 8) runSlice(n - 1);
 });

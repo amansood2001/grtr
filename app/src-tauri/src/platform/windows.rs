@@ -10,9 +10,10 @@ use windows::Win32::System::Com::{
     COINIT_APARTMENTTHREADED,
 };
 use windows::Win32::System::Variant::{VARIANT, VT_I4};
-use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON, VK_SHIFT};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, VK_CONTROL, VK_LBUTTON, VK_MENU, VK_SHIFT,
+};
 use windows::Win32::UI::Shell::{
-    IFolderView, IShellBrowser, IShellItemArray, IShellWindows, IWebBrowserApp, SID_STopLevelBrowser,
     ShellWindows, SIGDN_FILESYSPATH, SVGIO_SELECTION, SWC_DESKTOP, SWFO_NEEDDISPATCH,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -69,6 +70,8 @@ struct DragState {
     dragging: bool,
     shown: bool,
     shift: bool,
+    alt: bool,
+    ctrl: bool,
 }
 
 pub fn watch_drags(app: AppHandle) {
@@ -82,10 +85,12 @@ pub fn watch_drags(app: AppHandle) {
             std::thread::sleep(Duration::from_millis(15));
             let down = key_down(VK_LBUTTON.0);
             let shift = key_down(VK_SHIFT.0);
+            let alt = key_down(VK_MENU.0);
+            let ctrl = key_down(VK_CONTROL.0);
             let p = cursor_point();
 
             if down && !st.mouse_down {
-                st = DragState { mouse_down: true, start: (p.x, p.y), source: file_window_at(p), shift, ..Default::default() };
+                st = DragState { mouse_down: true, start: (p.x, p.y), source: file_window_at(p), shift, alt, ctrl, ..Default::default() };
                 continue;
             }
             if !down && st.mouse_down {
@@ -98,20 +103,32 @@ pub fn watch_drags(app: AppHandle) {
             if st.mouse_down && !st.dragging && st.source.is_some() {
                 st.dragging = (p.x - st.start.0).abs() > tx || (p.y - st.start.1).abs() > ty;
             }
-            if st.dragging && shift && !st.shift {
+            let (triggered, target_wheel) = if shift && !st.shift {
+                (true, "convert")
+            } else if alt && !st.alt {
+                (true, "tools")
+            } else if ctrl && !st.ctrl {
+                (true, "actions")
+            } else {
+                (false, "")
+            };
+            if st.dragging && triggered {
                 if st.shown {
-                    let _ = app.emit("wheel:cycle", ());
+                    let _ = app.emit("wheel:select_wheel", target_wheel);
                 } else if let Some(source) = st.source {
                     let paths = explorer_selection(source);
                     if !paths.is_empty() {
                         st.shown = true;
                         let handle = app.clone();
                         let at: Position = PhysicalPosition::new(p.x, p.y).into();
-                        let _ = app.run_on_main_thread(move || crate::show_wheel(&handle, paths, at, "drag"));
+                        let initial = target_wheel.to_string();
+                        let _ = app.run_on_main_thread(move || crate::show_wheel_with(&handle, paths, at, "drag", &initial));
                     }
                 }
             }
             st.shift = shift;
+            st.alt = alt;
+            st.ctrl = ctrl;
         }
     });
 }

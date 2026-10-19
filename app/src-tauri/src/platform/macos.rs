@@ -20,6 +20,8 @@ struct DragState {
     dragging: bool,
     shown: bool,
     shift: bool,
+    cmd_alt: bool,
+    ctrl: bool,
     paths: Vec<PathBuf>,
 }
 
@@ -42,11 +44,14 @@ pub fn watch_drags(app: AppHandle) {
         loop {
             std::thread::sleep(Duration::from_millis(15));
             let down = NSEvent::pressedMouseButtons() & 1 != 0;
-            let shift = NSEvent::modifierFlags_class().contains(NSEventModifierFlags::Shift);
+            let flags = NSEvent::modifierFlags_class();
+            let shift = flags.contains(NSEventModifierFlags::Shift);
+            let cmd_alt = flags.contains(NSEventModifierFlags::Command) || flags.contains(NSEventModifierFlags::Option);
+            let ctrl = flags.contains(NSEventModifierFlags::Control);
             let count = pb.changeCount();
 
             if down && !st.mouse_down {
-                st = DragState { mouse_down: true, start_count: count, shift, ..Default::default() };
+                st = DragState { mouse_down: true, start_count: count, shift, cmd_alt, ctrl, ..Default::default() };
                 continue;
             }
             if !down && st.mouse_down {
@@ -59,21 +64,33 @@ pub fn watch_drags(app: AppHandle) {
             if st.mouse_down && !st.dragging && count != st.start_count {
                 st.paths = file_urls(&pb);
                 st.dragging = !st.paths.is_empty();
-                crate::debug!("drag started: {} file(s), shift already held: {}", st.paths.len(), shift);
+                crate::debug!("drag started: {} file(s), shift: {}, cmd_alt: {}, ctrl: {}", st.paths.len(), shift, cmd_alt, ctrl);
             }
-            if st.dragging && shift && !st.shift {
-                crate::debug!("shift pressed mid-drag (wheel shown: {})", st.shown);
+            let (triggered, target_wheel) = if shift && !st.shift {
+                (true, "convert")
+            } else if cmd_alt && !st.cmd_alt {
+                (true, "tools")
+            } else if ctrl && !st.ctrl {
+                (true, "actions")
+            } else {
+                (false, "")
+            };
+            if st.dragging && triggered {
+                crate::debug!("modifier pressed mid-drag: {} (wheel shown: {})", target_wheel, st.shown);
                 if st.shown {
-                    let _ = app.emit("wheel:cycle", ());
+                    let _ = app.emit("wheel:select_wheel", target_wheel);
                 } else {
                     st.shown = true;
                     let (handle, paths) = (app.clone(), st.paths.clone());
+                    let initial = target_wheel.to_string();
                     let _ = app.run_on_main_thread(move || {
-                        crate::show_wheel(&handle, paths, cursor(), "drag");
+                        crate::show_wheel_with(&handle, paths, cursor(), "drag", &initial);
                     });
                 }
             }
             st.shift = shift;
+            st.cmd_alt = cmd_alt;
+            st.ctrl = ctrl;
         }
     });
 }

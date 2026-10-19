@@ -34,6 +34,7 @@ struct ShowPayload {
     actions: Vec<engine::ActionInfo>,
     size: u64,
     mode: &'static str,
+    initial_wheel: String,
     drop_in_pixels: bool,
     native_glass: bool,
 }
@@ -51,16 +52,21 @@ fn scale_at(app: &AppHandle, x: f64, y: f64) -> f64 {
 }
 
 pub fn show_wheel(app: &AppHandle, paths: Vec<PathBuf>, at: Position, mode: &'static str) {
+    show_wheel_with(app, paths, at, mode, "convert");
+}
+
+pub fn show_wheel_with(app: &AppHandle, paths: Vec<PathBuf>, at: Position, mode: &'static str, initial_wheel: &str) {
     let Some(win) = app.get_webview_window("wheel") else {
         debug!("show_wheel: no wheel window");
         return;
     };
-    debug!("show_wheel: {} file(s), mode {mode}, at {at:?}", paths.len());
+    debug!("show_wheel: {} file(s), mode {mode}, initial {initial_wheel}, at {at:?}", paths.len());
     let payload = ShowPayload {
         actions: engine::actions_for(&paths),
         size: engine::total_size(&paths),
         paths: paths.iter().map(|p| p.to_string_lossy().into_owned()).collect(),
         mode,
+        initial_wheel: initial_wheel.to_string(),
         drop_in_pixels: cfg!(target_os = "windows"),
         native_glass: platform::native_glass(),
     };
@@ -92,12 +98,142 @@ fn actions_for(paths: Vec<String>) -> Slices {
 
 #[tauri::command]
 async fn run_action(id: String, paths: Vec<String>) -> Result<Vec<String>, String> {
+    if id.starts_with("action.") {
+        return handle_file_action(&id, &paths);
+    }
     let paths: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
     tauri::async_runtime::spawn_blocking(move || engine::run(&id, &paths))
         .await
         .map_err(|e| e.to_string())?
         .map(|out| out.iter().map(|p| p.to_string_lossy().into_owned()).collect())
         .map_err(|e| e.to_string())
+}
+
+fn handle_file_action(id: &str, paths: &[String]) -> Result<Vec<String>, String> {
+    if paths.is_empty() {
+        return Err("No files selected".into());
+    }
+    match id {
+        "action.copy_path" => {
+            let text = paths.join("\n");
+            #[cfg(target_os = "macos")]
+            {
+                use std::io::Write;
+                if let Ok(mut child) = std::process::Command::new("pbcopy").stdin(std::process::Stdio::piped()).spawn() {
+                    if let Some(mut stdin) = child.stdin.take() {
+                        let _ = stdin.write_all(text.as_bytes());
+                    }
+                    let _ = child.wait();
+                }
+            }
+            #[cfg(target_os = "windows")]
+            {
+                use std::io::Write;
+                if let Ok(mut child) = std::process::Command::new("clip").stdin(std::process::Stdio::piped()).spawn() {
+                    if let Some(mut stdin) = child.stdin.take() {
+                        let _ = stdin.write_all(text.as_bytes());
+                    }
+                    let _ = child.wait();
+                }
+            }
+            #[cfg(target_os = "linux")]
+            {
+                use std::io::Write;
+                let _ = std::process::Command::new("wl-copy").stdin(std::process::Stdio::piped()).spawn().and_then(|mut c| {
+                    c.stdin.take().map(|mut s| s.write_all(text.as_bytes()))
+                });
+            }
+            Ok(vec!["Path copied".to_string()])
+        }
+        "action.terminal" => {
+            let p = std::path::Path::new(&paths[0]);
+            let dir = if p.is_dir() { p } else { p.parent().unwrap_or(p) };
+            #[cfg(target_os = "macos")]
+            {
+                let _ = std::process::Command::new("open")
+                    .args(["-a", "Terminal", dir.to_str().unwrap_or(".")])
+                    .spawn();
+            }
+            #[cfg(target_os = "windows")]
+            {
+                let _ = std::process::Command::new("cmd")
+                    .args(["/C", "start", "wt", "-d", dir.to_str().unwrap_or(".")])
+                    .spawn();
+            }
+            #[cfg(target_os = "linux")]
+            {
+                let _ = std::process::Command::new("x-terminal-emulator")
+                    .arg("--working-directory")
+                    .arg(dir)
+                    .spawn();
+            }
+            Ok(vec!["Terminal opened".to_string()])
+        }
+        "action.reveal" => {
+            #[cfg(target_os = "macos")]
+            {
+                let _ = std::process::Command::new("open")
+                    .arg("-R")
+                    .arg(&paths[0])
+                    .spawn();
+            }
+            #[cfg(target_os = "windows")]
+            {
+                let _ = std::process::Command::new("explorer")
+                    .args([format!("/select,\"{}\"", paths[0])])
+                    .spawn();
+            }
+            #[cfg(target_os = "linux")]
+            {
+                let p = std::path::Path::new(&paths[0]);
+                let dir = if p.is_dir() { p } else { p.parent().unwrap_or(p) };
+                let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+            }
+            Ok(vec!["Revealed in Finder".to_string()])
+        }
+        "action.copy" => {
+            #[cfg(target_os = "macos")]
+            {
+                let file_list = paths.iter().map(|p| format!("POSIX file \"{}\"", p.replace('\"', "\\\""))).collect::<Vec<_>>().join(", ");
+                let script = format!("set the clipboard to {{{file_list}}}");
+                let _ = std::process::Command::new("osascript").args(["-e", &script]).spawn();
+            }
+            Ok(vec!["Files copied".to_string()])
+        }
+        "action.quicklook" => {
+            #[cfg(target_os = "macos")]
+            {
+                let _ = std::process::Command::new("qlmanage")
+                    .args(["-p", &paths[0]])
+                    .spawn();
+            }
+            #[cfg(target_os = "windows")]
+            {
+                let _ = std::process::Command::new("cmd")
+                    .args(["/C", "start", "", &paths[0]])
+                    .spawn();
+            }
+            #[cfg(target_os = "linux")]
+            {
+                let _ = std::process::Command::new("xdg-open")
+                    .arg(&paths[0])
+                    .spawn();
+            }
+            Ok(vec!["Preview opened".to_string()])
+        }
+        "action.airdrop" => {
+            #[cfg(target_os = "macos")]
+            {
+                let script = format!(
+                    "tell application \"Finder\" to open POSIX file \"{}\"",
+                    paths[0].replace('\"', "\\\"")
+                );
+                let _ = std::process::Command::new("osascript").args(["-e", &script]).spawn();
+            }
+            Ok(vec!["AirDrop launched".to_string()])
+        }
+        _ => Err(format!("Unknown action {id}")),
+    }
 }
 
 #[tauri::command]
@@ -190,7 +326,10 @@ fn open_url(url: String) {
 }
 
 fn tray(app: &tauri::App) -> tauri::Result<()> {
-    let hint = MenuItem::with_id(app, "hint", "Drag a file and press Shift", false, None::<&str>)?;
+    #[cfg(target_os = "macos")]
+    let hint = MenuItem::with_id(app, "hint", "Drag a file + Shift (Convert) · ⌘ (Tools) · ⌃ (Actions)", false, None::<&str>)?;
+    #[cfg(not(target_os = "macos"))]
+    let hint = MenuItem::with_id(app, "hint", "Drag a file + Shift (Convert) · Alt (Tools) · Ctrl (Actions)", false, None::<&str>)?;
     let label = format!("Or select a file and press {}", SHORTCUT.1);
     let shortcut = MenuItem::with_id(app, "shortcut", label, false, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit grtr", true, Some("CmdOrCtrl+Q"))?;
@@ -206,6 +345,7 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
     }
+    builder = builder.icon_as_template(true);
     builder.build(app)?;
     Ok(())
 }

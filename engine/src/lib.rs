@@ -30,6 +30,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Wheel {
     Convert,
     Tools,
+    Actions,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -78,6 +79,15 @@ const IMAGE_EXTRAS: &[(&str, &str)] = &[
 
 const PDF_TARGETS: &[(&str, &str)] = &[("jpg", "JPG"), ("png", "PNG"), ("txt", "TXT")];
 
+pub const FILE_ACTIONS: &[(&str, &str)] = &[
+    ("action.copy_path", "Copy Path"),
+    ("action.terminal", "Terminal"),
+    ("action.reveal", "Reveal"),
+    ("action.copy", "Copy"),
+    ("action.quicklook", "Quick Look"),
+    ("action.airdrop", "AirDrop"),
+];
+
 fn actions_for_kind(kind: Kind) -> Vec<ActionInfo> {
     let mut out = Vec::new();
     match kind {
@@ -112,13 +122,20 @@ fn actions_for_kind(kind: Kind) -> Vec<ActionInfo> {
 }
 
 pub fn actions_for(paths: &[PathBuf]) -> Vec<ActionInfo> {
+    if paths.is_empty() {
+        return Vec::new();
+    }
     let mut iter = paths.iter().map(|p| actions_for_kind(Kind::of(p)));
-    let Some(first) = iter.next() else { return Vec::new() };
-    let shared = iter.fold(first, |acc, next| {
+    let first = iter.next().unwrap_or_default();
+    let mut shared = iter.fold(first, |acc, next| {
         acc.into_iter().filter(|a| next.iter().any(|b| b.id == a.id)).collect::<Vec<_>>()
     });
     if paths.len() > 1 {
-        return shared.into_iter().filter(|a| a.panel.is_none()).collect();
+        shared.retain(|a| a.panel.is_none());
+    }
+    // File actions are available on any file, multiple files, or folders
+    for (id, title) in FILE_ACTIONS {
+        shared.push(info(id, title, Wheel::Actions));
     }
     shared
 }
@@ -160,6 +177,15 @@ pub fn save_edit(original: &Path, suffix: &str, ext: &str, bytes: &[u8]) -> Resu
 }
 
 pub fn run(action_id: &str, paths: &[PathBuf]) -> Result<Vec<PathBuf>> {
+    if action_id == "convert.pdf" && paths.len() > 1 && paths.iter().all(|p| matches!(Kind::of(p), Kind::Image(_))) {
+        let mut imgs = Vec::new();
+        for p in paths {
+            imgs.push(image_ops::load(p)?);
+        }
+        let out = naming::sibling(&paths[0], Some("combined"), "pdf");
+        pdf_write::write_images(&imgs, &out)?;
+        return Ok(vec![out]);
+    }
     let mut created = Vec::new();
     for path in paths {
         created.extend(run_one(action_id, path)?);
