@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>grtr Settings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+      background: #fbfbfa;
+      color: #1d1d1f;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #18181b;
+        color: #fafafa;
+      }
+    }
+    /* Tabs Header */
+    .tabs-bar {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      background: rgba(255, 255, 255, 0.7);
+      -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px);
+    }
+    @media (prefers-color-scheme: dark) {
+      .tabs-bar {
+        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(24, 24, 27, 0.7);
+      }
+    }
+    .tab-btn {
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: #71717a;
+      cursor: pointer;
+      transition: all 120ms ease;
+    }
+    .tab-btn:hover {
+      color: #1d1d1f;
+      background: rgba(0, 0, 0, 0.04);
+    }
+    @media (prefers-color-scheme: dark) {
+      .tab-btn:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.08);
+      }
+    }
+    .tab-btn.active {
+      color: #ffffff;
+      background: #65a30d;
+    }
+    @media (prefers-color-scheme: dark) {
+      .tab-btn.active {
+        color: #09090b;
+        background: #84cc16;
+      }
+    }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .tab-panel {
+      display: none;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    /* Form Styles */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #71717a;
+      margin-bottom: 10px;
+    }
+    .setting-group {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .setting-group {
+        background: #27272a;
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+    }
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 0;
+      font-size: 12.5px;
+      font-weight: 500;
+    }
+    .setting-row + .setting-row {
+      border-top: 1px solid rgba(0, 0, 0, 0.04);
+    }
+    @media (prefers-color-scheme: dark) {
+      .setting-row + .setting-row {
+        border-top-color: rgba(255, 255, 255, 0.06);
+      }
+    }
+    .select-input {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      background: #fafafa;
+      color: inherit;
+      outline: none;
+    }
+    @media (prefers-color-scheme: dark) {
+      .select-input {
+        background: #18181b;
+        border-color: rgba(255, 255, 255, 0.15);
+      }
+    }
+    .segmented {
+      display: inline-flex;
+      background: #f4f4f5;
+      padding: 2px;
+      border-radius: 7px;
+    }
+    @media (prefers-color-scheme: dark) {
+      .segmented {
+        background: #18181b;
+      }
+    }
+    .seg-btn {
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: #71717a;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .seg-btn.active {
+      background: #ffffff;
+      color: #1d1d1f;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      .seg-btn.active {
+        background: #27272a;
+        color: #ffffff;
+      }
+    }
+
+    /* About Panel */
+    .about-box {
+      text-align: center;
+      padding: 30px 20px;
+    }
+    .about-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: #65a30d;
+      color: #ffffff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      font-weight: 900;
+      margin-bottom: 14px;
+      box-shadow: 0 10px 25px rgba(101, 163, 13, 0.3);
+    }
+    @media (prefers-color-scheme: dark) {
+      .about-logo {
+        background: #84cc16;
+        color: #09090b;
+      }
+    }
+    .lime-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: #ecfccb;
+      color: #3f6212;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tabs Navigation Header -->
+  <div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('general')">General</button>
+    <button class="tab-btn" onclick="switchTab('formats')">Formats</button>
+    <button class="tab-btn" onclick="switchTab('compatibility')">Compatibility</button>
+    <button class="tab-btn" onclick="switchTab('about')">About</button>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content-area">
+
+    <!-- Tab 1: General -->
+    <div id="panel-general" class="tab-panel active">
+      <div class="section-title">Appearance</div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <span>Theme style</span>
+          <div class="segmented">
+            <button class="seg-btn active" id="btn-glass" onclick="setTheme('glass')">Glass</button>
+            <button class="seg-btn" id="btn-solid" onclick="setTheme('solid')">Solid</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">System & Interaction</div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <span>Launch at login</span>
+          <input type="checkbox" id="chk-login" checked style="accent-color: #65a30d;">
+        </div>
+        <div class="setting-row">
+          <span>Sound and haptic feedback</span>
+          <input type="checkbox" id="chk-sound" checked style="accent-color: #65a30d;">
+        </div>
+      </div>
+
+      <div class="section-title">Drag Modifiers</div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <span>Conversion wheel</span>
+          <select class="select-input" id="mod-convert">
+            <option selected>Shift</option>
+            <option>⌘ Command</option>
+            <option>⌃ Control</option>
+            <option>⌥ Option</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Tools wheel</span>
+          <select class="select-input" id="mod-tools">
+            <option>Shift</option>
+            <option selected>⌘ Command</option>
+            <option>⌃ Control</option>
+            <option>⌥ Option</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Actions wheel</span>
+          <select class="select-input" id="mod-actions">
+            <option>Shift</option>
+            <option>⌘ Command</option>
+            <option selected>⌃ Control</option>
+            <option>⌥ Option</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-title">External Utilities</div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <span>Terminal application</span>
+          <select class="select-input" id="sel-terminal">
+            <option selected>Terminal</option>
+            <option>iTerm2</option>
+            <option>Warp</option>
+            <option>Ghostty</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Formats -->
+    <div id="panel-formats" class="tab-panel">
+      <div class="section-title">Image Quality & Optimization</div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <span>JPEG / WebP quality</span>
+          <select class="select-input">
+            <option>Smaller File (80%)</option>
+            <option selected>Balanced (90%)</option>
+            <option>Higher Quality (98%)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Preserve EXIF metadata</span>
+          <input type="checkbox" id="chk-exif" checked style="accent-color: #65a30d;">
+        </div>
+        <div class="setting-row">
+          <span>Default image resize max-edge</span>
+          <select class="select-input">
+            <option selected>Keep original dimensions</option>
+            <option>2560 px (2K)</option>
+            <option>1920 px (1080p)</option>
+            <option>1280 px (720p)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-title">Audio & Video Defaults</div>
+      <div class="setting-group">
+        <div class="setting-row">
+          <span>MP3 / M4A Audio bitrate</span>
+          <select class="select-input">
+            <option>128 kbps</option>
+            <option>192 kbps</option>
+            <option selected>256 kbps</option>
+            <option>320 kbps (Studio)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>Video target height</span>
+          <select class="select-input">
+            <option selected>Original resolution</option>
+            <option>2160p (4K UHD)</option>
+            <option>1080p (Full HD)</option>
+            <option>720p (HD)</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <span>GIF frame rate</span>
+          <select class="select-input">
+            <option>10 fps</option>
+            <option selected>15 fps (Smooth)</option>
+            <option>24 fps (Full Motion)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Compatibility -->
+    <div id="panel-compatibility" class="tab-panel">
+      <div class="section-title">Format Compatibility Matrix</div>
+      <div class="setting-group" style="padding: 12px; font-size: 11px;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(0,0,0,0.08); color: #71717a;">
+              <th style="padding: 6px 4px;">From</th>
+              <th style="padding: 6px 4px;">Supported Targets</th>
+            </tr>
+          </thead>
+          <tbody style="line-height: 1.8;">
+            <tr style="border-bottom: 1px solid rgba(0,0,0,0.04);">
+              <td style="font-weight: 700;">Images</td>
+              <td>JPG, PNG, WEBP, PDF, HEIC, TIFF, BMP, GIF, AVIF</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(0,0,0,0.04);">
+              <td style="font-weight: 700;">PDF</td>
+              <td>JPG, PNG, TXT, DOCX, PAGES, EPUB</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(0,0,0,0.04);">
+              <td style="font-weight: 700;">Video</td>
+              <td>MP4, MOV, MKV, WEBM, GIF, MP3</td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(0,0,0,0.04);">
+              <td style="font-weight: 700;">Audio</td>
+              <td>MP3, M4A, WAV, FLAC, OGG, OPUS, AIFF</td>
+            </tr>
+            <tr>
+              <td style="font-weight: 700;">Archives</td>
+              <td>ZIP, TAR, GZIP, RAR</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 4: About -->
+    <div id="panel-about" class="tab-panel">
+      <div class="about-box">
+        <div class="about-logo">g</div>
+        <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em;">grtr</div>
+        <div style="font-size: 12px; color: #71717a; margin-top: 2px;">Version 0.2.0 (Lime Edition)</div>
+        <div class="lime-badge">100% Free & Unlimited Forever</div>
+        
+        <p style="font-size: 12px; color: #71717a; max-w: 360px; margin: 18px auto 0; line-height: 1.6;">
+          An instant radial file utility engineered in high-performance Rust. Zero accounts, zero uploads, zero paywalls.
+        </p>
+
+        <div style="margin-top: 24px; display: flex; justify-content: center; gap: 10px;">
+          <a href="https://v2-grtr-app.vercel.app" target="_blank" style="font-size: 11.5px; font-weight: 600; padding: 6px 14px; border-radius: 8px; background: #65a30d; color: #ffffff; text-decoration: none;">Website</a>
+          <a href="https://github.com/amansood2001/grtr" target="_blank" style="font-size: 11.5px; font-weight: 600; padding: 6px 14px; border-radius: 8px; background: rgba(0,0,0,0.06); color: inherit; text-decoration: none;">GitHub</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      const tabs = ['general', 'formats', 'compatibility', 'about'];
+      tabs.forEach((id, i) => {
+        const btn = document.querySelectorAll('.tab-btn')[i];
+        const panel = document.getElementById(`panel-${id}`);
+        if (id === tabId) {
+          btn.classList.add('active');
+          panel.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+          panel.classList.remove('active');
+        }
+      });
+    }
+
+    function setTheme(mode) {
+      document.getElementById('btn-glass').className = (mode === 'glass') ? 'seg-btn active' : 'seg-btn';
+      document.getElementById('btn-solid').className = (mode === 'solid') ? 'seg-btn active' : 'seg-btn';
+    }
+  </script>
+</body>
+</html>

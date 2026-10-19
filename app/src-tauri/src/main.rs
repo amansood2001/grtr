@@ -328,6 +328,25 @@ fn open_url(url: String) {
     let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
 }
 
+fn open_settings(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window("settings") {
+        let _ = win.show();
+        let _ = win.set_focus();
+        return;
+    }
+    let _ = WebviewWindowBuilder::new(app, "settings", WebviewUrl::App("settings.html".into()))
+        .title("grtr Settings")
+        .inner_size(560.0, 520.0)
+        .min_inner_size(480.0, 440.0)
+        .center()
+        .build();
+}
+
+#[tauri::command]
+fn open_settings_window(app: AppHandle) {
+    open_settings(&app);
+}
+
 fn tray(app: &tauri::App) -> tauri::Result<()> {
     #[cfg(target_os = "macos")]
     let hint = MenuItem::with_id(app, "hint", "Drag a file + Shift (Convert) · ⌘ (Tools) · ⌃ (Actions)", false, None::<&str>)?;
@@ -335,13 +354,16 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
     let hint = MenuItem::with_id(app, "hint", "Drag a file + Shift (Convert) · Alt (Tools) · Ctrl (Actions)", false, None::<&str>)?;
     let label = format!("Or select a file and press {}", SHORTCUT.1);
     let shortcut = MenuItem::with_id(app, "shortcut", label, false, None::<&str>)?;
+    let settings = MenuItem::with_id(app, "settings", "Settings…", true, Some("CmdOrCtrl+,"))?;
     let quit = MenuItem::with_id(app, "quit", "Quit grtr", true, Some("CmdOrCtrl+Q"))?;
-    let menu = Menu::with_items(app, &[&hint, &shortcut, &PredefinedMenuItem::separator(app)?, &quit])?;
+    let menu = Menu::with_items(app, &[&hint, &shortcut, &PredefinedMenuItem::separator(app)?, &settings, &PredefinedMenuItem::separator(app)?, &quit])?;
     let mut builder = TrayIconBuilder::with_id("main")
         .tooltip("grtr")
         .menu(&menu)
         .on_menu_event(|app, event| {
-            if event.id() == "quit" {
+            if event.id() == "settings" {
+                open_settings(app);
+            } else if event.id() == "quit" {
                 app.exit(0);
             }
         });
@@ -364,7 +386,7 @@ fn main() {
                 })
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![actions_for, run_action, hide_wheel, open_panel, load_for_edit, save_edit, open_url])
+        .invoke_handler(tauri::generate_handler![actions_for, run_action, hide_wheel, open_panel, load_for_edit, save_edit, open_url, open_settings_window])
         .setup(|app| {
             if std::env::var_os("GRTR_PDFIUM").is_none() && std::env::var_os("RYSHIFT_PDFIUM").is_none() {
                 if let Ok(dir) = app.path().resource_dir() {

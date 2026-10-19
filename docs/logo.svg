@@ -17,6 +17,10 @@
       <stop offset="0" stop-color="#ffffff" stop-opacity="0.3" />
       <stop offset="1" stop-color="#ffffff" stop-opacity="0.03" />
     </radialGradient>
+    <linearGradient id="limeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a3e635" />
+      <stop offset="100%" stop-color="#65a30d" />
+    </linearGradient>
   </defs>
 
   <!-- Squircle rounded background -->
@@ -35,8 +39,8 @@
     <line x1="512" y1="397" x2="512" y2="182" transform="rotate(337.5 512 512)" />
   </g>
 
-  <!-- Active slice (top), in crisp pure silver -->
-  <path d="M 386 211 A 330 330 0 0 1 638 211 L 556 408 A 115 115 0 0 0 468 408 Z" fill="#fafafa" />
+  <!-- Active slice (top), in Electric Lime -->
+  <path d="M 386 211 A 330 330 0 0 1 638 211 L 556 408 A 115 115 0 0 0 468 408 Z" fill="url(#limeGrad)" />
 
   <!-- Glass outer rim -->
   <circle cx="512" cy="512" r="330" fill="none" stroke="url(#rim)" stroke-width="8" />
@@ -45,6 +49,6 @@
   <circle cx="512" cy="512" r="115" fill="#18181b" />
   <circle cx="512" cy="512" r="115" fill="none" stroke="url(#rim)" stroke-width="5" />
 
-  <!-- Clean geometric 'g' -->
-  <text x="512" y="556" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="130" font-weight="900" fill="#fafafa" letter-spacing="-0.05em">g</text>
+  <!-- Clean geometric 'g' in Lime -->
+  <text x="512" y="556" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" font-size="130" font-weight="900" fill="#a3e635" letter-spacing="-0.05em">g</text>
 </svg>

@@ -10,9 +10,9 @@
   --ink: #09090b;
   --muted: #71717a;
   --line: #e4e4e7;
-  --accent: #18181b;
-  --accent-ink: #fafafa;
-  --accent-soft: #f4f4f5;
+  --accent: #65a30d;
+  --accent-ink: #ffffff;
+  --accent-soft: #ecfccb;
   --stage: #e4e4e7;
   --check-a: #f4f4f5;
   --check-b: #ffffff;
@@ -25,9 +25,9 @@
     --ink: #fafafa;
     --muted: #a1a1aa;
     --line: #27272a;
-    --accent: #f4f4f5;
+    --accent: #84cc16;
     --accent-ink: #09090b;
-    --accent-soft: #27272a;
+    --accent-soft: rgba(132, 204, 22, 0.15);
     --stage: #09090b;
     --check-a: #121214;
     --check-b: #18181b;
