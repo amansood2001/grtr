@@ -227,11 +227,25 @@ fn handle_file_action(id: &str, paths: &[String]) -> Result<Vec<String>, String>
         "action.airdrop" => {
             #[cfg(target_os = "macos")]
             {
+                let urls_js = paths
+                    .iter()
+                    .map(|p| format!("urls.addObject($.NSURL.fileURLWithPath(\"{}\"));", p.replace('\\', "\\\\").replace('\"', "\\\"")))
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 let script = format!(
-                    "tell application \"Finder\" to open POSIX file \"{}\"",
-                    paths[0].replace('\"', "\\\"")
+                    "ObjC.import('AppKit'); \
+                     var service = $.NSSharingService.sharingServiceNamed($.NSSharingServiceNameSendViaAirDrop); \
+                     var urls = $.NSMutableArray.alloc.init; \
+                     {urls_js} \
+                     if (service && service.canPerformWithItems(urls)) {{ \
+                         service.performWithItems(urls); \
+                     }} else {{ \
+                         $.NSWorkspace.sharedWorkspace.openURL($.NSURL.fileURLWithPath('/System/Library/CoreServices/Finder.app/Contents/Applications/AirDrop.app')); \
+                     }}"
                 );
-                let _ = std::process::Command::new("osascript").args(["-e", &script]).spawn();
+                let _ = std::process::Command::new("osascript")
+                    .args(["-l", "JavaScript", "-e", &script])
+                    .spawn();
             }
             Ok(vec!["AirDrop launched".to_string()])
         }
